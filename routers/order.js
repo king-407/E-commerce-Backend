@@ -26,6 +26,26 @@ router.put("/:id", auth, async (req, res) => {
     console.log(e);
   }
 });
+router.delete("/:id", (req, res) => {
+  Order.findByIdAndRemove(req.params.id)
+    .then(async (order) => {
+      if (order) {
+        await order.orderItems.map(async (orderItem) => {
+          await OrderItem.findByIdAndRemove(orderItem);
+        });
+        return res
+          .status(200)
+          .json({ success: true, message: "the order has been deleted" });
+      } else {
+        return res
+          .status(404)
+          .json({ success: false, message: "order not found" });
+      }
+    })
+    .catch((err) => {
+      return res.status(500).json({ success: false, error: err });
+    });
+});
 router.get("/", async (req, res) => {
   try {
     const orderList = await Order.find()
@@ -63,11 +83,24 @@ router.post("/", auth, async (req, res) => {
     })
   );
   const finalaId = await orderItemsId;
+  let puura = 0;
+  const prices = Promise.all(
+    finalaId.map(async (order) => {
+      const dup = await OrderItem.findById(order).populate("product", "price");
+      console.log(dup);
+      puura += dup.quantity * dup.product.price;
+      return 0;
+    })
+  );
+  const totalPrice = await prices;
+  console.log(puura);
+
   let order = new Order({
     orderItems: finalaId,
     address: req.body.address,
 
     user: req.user._id,
+    total: puura,
   });
   order = await order.save();
 
