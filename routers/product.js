@@ -4,24 +4,50 @@ const Product = require("../models/product");
 const Category = require("../models/category");
 const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
-router.get("/", auth, async (req, res) => {
+const multer = require("multer");
+const FILE_TYPE_MAP = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpeg": "jpeg",
+};
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const isValid = FILE_TYPE_MAP[file.mimetype];
+    let uploadError = new Error("invalid image type");
+    if (isValid) {
+      uploadError = null;
+    }
+    cb(uploadError, "public/uploads");
+  },
+  filename: function (req, file, cb) {
+    const fileName = file.originalname.split(" ").join("-");
+    const extension = FILE_TYPE_MAP[file.mimetype];
+    cb(null, fileName + "-" + Date.now() + `.` + `${extension}`);
+  },
+});
+const uploadOptions = multer({ storage: storage });
+router.get("/", async (req, res) => {
   const productList = await Product.find().populate("category");
   if (!productList) {
     res.status(500).json({ success: false });
   }
   res.send(productList);
 });
-router.post("/", auth, async (req, res) => {
-  if (!req.user.isAdmin) {
-    return res
-      .status(200)
-      .json({ error: "You cannot make changes as you are not an admin" });
-  }
+router.post("/", uploadOptions.single("image"), async (req, res) => {
+  // if (!req.user.isAdmin) {
+  //   return res
+  //     .status(200)
+  //     .json({ error: "You cannot make changes as you are not an admin" });
+  // }
   const category = await Category.findById(req.body.category);
   if (!category) {
     return res.status(200).json({ error: "No category found" });
   }
-
+  if (!req.file) {
+    res.status(400).send("No image found");
+  }
+  const fileName = req.file.filename;
+  const basePath = `${req.protocol}://${req.get("host")}/public/uploads/`;
   const product = new Product({
     name: req.body.name,
     description: req.body.description,
@@ -32,7 +58,7 @@ router.post("/", auth, async (req, res) => {
     rating: req.body.rating,
     category: req.body.category,
     isFeatured: req.body.isFeatured,
-    image: req.body.image,
+    image: `${basePath}${fileName}`,
     countInStock: req.body.countInStock,
   });
   product

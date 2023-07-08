@@ -10,10 +10,12 @@ const api = process.env.URL;
 const Product = require("./models/product");
 const app = express();
 app.use(bodyParser.json());
+app.use("/public/uploads", express.static(__dirname + "/public/uploads"));
 app.use(`${api}/products`, productsRouter);
 app.use(`${api}/category`, categoryRoutes);
 app.use(`${api}/user`, userRoutes);
 app.use(`${api}/orders`, orders);
+app.get("/public/uploads", (req, res) => {});
 mongoose
   .connect(
     "mongodb+srv://shivamtiwaritiwari0704:shivam@cluster0.gwmwwxm.mongodb.net/eshop?retryWrites=true&w=majority",
